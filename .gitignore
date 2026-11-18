@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+perf-results/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+# OpenSky's terms forbid redistributing its data; recordings stay local.
+data/recordings/*.json
