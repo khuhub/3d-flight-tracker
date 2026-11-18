@@ -1,0 +1,23 @@
+{
+  "format": "flight-routes-v1",
+  "source": "SYNTHETIC TEST FIXTURE - routes for the synthetic replay fixture callsigns",
+  "license": "CC0-1.0",
+  "generatedAt": "2023-11-14T00:00:00.000Z",
+  "airports": {
+    "EGLL": ["London Heathrow Airport", "LHR", 51.4706, -0.4619],
+    "EDDF": ["Frankfurt am Main Airport", "FRA", 50.0264, 8.5431],
+    "EDDH": ["Hamburg Airport", "HAM", 53.6304, 9.9882],
+    "LFPG": ["Paris Charles de Gaulle Airport", "CDG", 49.0097, 2.5479],
+    "UHPP": ["Petropavlovsk-Kamchatsky Airport", "PKC", 53.1679, 158.4537],
+    "PANC": ["Ted Stevens Anchorage International Airport", "ANC", 61.1743, -149.9963],
+    "KJFK": ["John F Kennedy International Airport", "JFK", 40.6398, -73.7789],
+    "KLAX": ["Los Angeles International Airport", "LAX", 33.9425, -118.4081]
+  },
+  "routes": {
+    "TST101": "EGLL-EDDF",
+    "TST202": "EDDH-LFPG",
+    "TST303": "LFPG-EDDH",
+    "TST404": "KJFK-KLAX",
+    "TST808": "UHPP-PANC"
+  }
+}

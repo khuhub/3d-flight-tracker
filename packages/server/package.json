@@ -1,0 +1,17 @@
+{
+  "name": "@flight/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/index.ts --mode=replay",
+    "dev:live": "tsx watch --clear-screen=false src/index.ts --mode=live",
+    "start": "tsx src/index.ts",
+    "start:e2e": "tsx src/index.ts --mode=replay",
+    "record": "tsx src/record.ts",
+    "routes:update": "tsx src/updateRoutes.ts"
+  },
+  "dependencies": {
+    "@flight/shared": "*"
+  }
+}

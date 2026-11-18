@@ -1,0 +1,43 @@
+{
+  "name": "3d-flight-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Live aircraft on an interactive 3D globe, backed by OpenSky state vectors.",
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/client"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c blue,magenta \"npm run dev -w @flight/server\" \"npm run dev -w @flight/client\"",
+    "dev:live": "concurrently -k -n server,client -c blue,magenta \"npm run dev:live -w @flight/server\" \"npm run dev -w @flight/client\"",
+    "start": "npm run build && npm run start -w @flight/server",
+    "build": "npm run build -w @flight/client",
+    "typecheck": "tsc -p packages/shared && tsc -p packages/server && tsc -p packages/client && tsc -p tsconfig.tools.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test -c playwright.config.ts",
+    "perf": "playwright test -c playwright.perf.config.ts",
+    "record": "npm run record -w @flight/server --"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^22.20.5",
+    "@types/pngjs": "^6.0.5",
+    "concurrently": "^9.2.5",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "pngjs": "^7.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^3.2.7"
+  }
+}
