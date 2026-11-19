@@ -29,9 +29,9 @@ export class GlobeView {
   readonly routes = new RouteLayer();
   private readonly earth: ReturnType<typeof createEarth>;
   private readonly timer = new THREE.Timer();
-  private readonly resizeObserver: ResizeObserver;
   private readonly follow: AircraftFollow;
   private readonly pointer: GlobePointer;
+  private readonly resizeObserver: ResizeObserver;
   private raf = 0;
   private selectedId: string | null = null;
   private lastFrameAt = 0;
@@ -48,7 +48,6 @@ export class GlobeView {
     private readonly container: HTMLElement,
     private readonly store: FlightStore,
     private readonly onSelect: (icao24: string | null) => void,
-    onFollowChange: (icao24: string | null) => void,
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -80,7 +79,10 @@ export class GlobeView {
     this.aircraft = new AircraftLayer(this.scene);
     this.scene.add(this.routes.group);
 
-    this.follow = new AircraftFollow(onFollowChange);
+    this.follow = new AircraftFollow();
+    this.aircraft.setPositionsListener((tracks, positions) => {
+      this.follow.update(tracks, positions, this.camera, this.controls.target, this.camera.position.length());
+    });
     this.pointer = new GlobePointer(this.renderer.domElement, () => this.follow.setTarget(null), this.handleClick);
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -97,6 +99,10 @@ export class GlobeView {
   followAircraft(icao24: string): void {
     this.selectedId = icao24;
     this.follow.setTarget(icao24);
+  }
+
+  setFollowListener(listener: (icao24: string | null) => void): void {
+    this.follow.setListener(listener);
   }
 
   /** Points the camera at a location from the given distance (globe radii from the centre). */
@@ -148,9 +154,6 @@ export class GlobeView {
       aircraftCount: this.aircraft.count,
       selectedId: this.selectedId,
     });
-
-    this.follow.update(this.store.tracks, this.aircraft.positions, this.camera, this.controls.target, this.camera.position.length());
-
     this.renderer.render(this.scene, this.camera);
     this.drawCalls = this.renderer.info.render.calls;
 

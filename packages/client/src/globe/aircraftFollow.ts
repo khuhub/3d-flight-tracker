@@ -7,7 +7,11 @@ export class AircraftFollow {
   private tracks: readonly MotionTrack[] | null = null;
   private index = -1;
 
-  constructor(private readonly onChange: (icao24: string | null) => void) {}
+  private onChange?: (icao24: string | null) => void;
+
+  setListener(listener: (icao24: string | null) => void): void {
+    this.onChange = listener;
+  }
 
   get targetId(): string | null {
     return this.id;
@@ -17,7 +21,7 @@ export class AircraftFollow {
     if (this.id === icao24) return;
     this.id = icao24;
     this.tracks = null;
-    this.onChange(icao24);
+    this.onChange?.(icao24);
   }
 
   update(

@@ -18,6 +18,7 @@ function stressCount(): number | null {
 }
 
 export function App() {
+  const [followingId, setFollowingId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<GlobeView | null>(null);
   const selectedRef = useRef<string | null>(null);
@@ -27,14 +28,14 @@ export function App() {
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [dataVersion, setDataVersion] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [followingId, setFollowingId] = useState<string | null>(null);
   const [, setTick] = useState(0);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const view = new GlobeView(container, store, setSelectedId, setFollowingId);
+    const view = new GlobeView(container, store, setSelectedId);
     viewRef.current = view;
+    view.setFollowListener(setFollowingId);
     const extras: Parameters<typeof installDebugApi>[3] = {};
     let cleanup = (): void => {};
 
@@ -94,7 +95,6 @@ export function App() {
       <div className="globe" ref={containerRef} />
       <header className="title">
         <h1>Flight Tracker</h1>
-        <p className="hint">Drag to rotate · Scroll to zoom · Click an aircraft for details</p>
         <AircraftSearch
           tracks={store.tracks}
           followLabel={followingId && followingId === selectedId ? selectedTrack?.aircraft.callsign ?? followingId : null}
@@ -105,6 +105,7 @@ export function App() {
             viewRef.current?.followAircraft(id);
           }}
         />
+        <p className="hint">Drag to rotate · Scroll to zoom · Click an aircraft for details</p>
       </header>
       <Legend routeCount={store.routes.size} aircraftCount={store.tracks.length} />
       {selectedTrack && (
