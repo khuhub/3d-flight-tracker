@@ -64,6 +64,8 @@ test('flight filters update the rendered fleet, routes, counts, and selection', 
   await expect(page.getByTestId('details-panel')).toBeHidden();
 
   await page.setViewportSize({ width: 375, height: 600 });
+  const titleBounds = (await page.locator('.title').boundingBox())!;
+  expect((await summary.boundingBox())!.y).toBeGreaterThan(titleBounds.y + titleBounds.height);
   await expect(reset).toBeInViewport();
   await altitude.selectOption({ label: 'Unknown altitude' });
   await expect(count).toHaveText('1 aircraft');

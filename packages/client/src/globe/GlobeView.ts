@@ -30,7 +30,6 @@ export class GlobeView {
   private readonly resizeObserver: ResizeObserver;
   private raf = 0;
   private selectedId: string | null = null;
-  private renderedTracks: FlightStore['tracks'] = [];
   private pointerStart: { x: number; y: number; t: number } | null = null;
   private lastFrameAt = 0;
   private intervals = new Float32Array(FRAME_SAMPLES);
@@ -41,6 +40,7 @@ export class GlobeView {
   private interacting = false;
   private lastInteractionAt = -Infinity;
   private readonly viewProjection = new THREE.Matrix4();
+  private renderedTracks: FlightStore['tracks'] = [];
 
   constructor(
     private readonly container: HTMLElement,
