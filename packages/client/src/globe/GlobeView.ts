@@ -134,11 +134,12 @@ export class GlobeView {
     this.controls.autoRotate =
       this.autoRotate && !this.interacting && this.selectedId === null && start - this.lastInteractionAt > AUTO_ROTATE_RESUME_MS;
     this.controls.rotateSpeed = Math.min(1, Math.max(0.04, (distance - 1) * 0.35));
+    // A follow target that is temporarily absent still holds the camera in place.
+    if (this.follow.targetId !== null) this.controls.autoRotate = false;
     this.controls.update(delta);
 
     const now = this.store.now();
     this.aircraft.update(this.store.tracks, now, distance, this.selectedId);
-    this.follow.update(this.store.tracks, this.aircraft.positions, this.camera, this.controls.target, this.camera.position.length());
     this.routes.update({
       tracks: this.store.tracks,
       routes: this.store.routes,
@@ -147,6 +148,9 @@ export class GlobeView {
       aircraftCount: this.aircraft.count,
       selectedId: this.selectedId,
     });
+
+    this.follow.update(this.store.tracks, this.aircraft.positions, this.camera, this.controls.target, this.camera.position.length());
+
     this.renderer.render(this.scene, this.camera);
     this.drawCalls = this.renderer.info.render.calls;
 
