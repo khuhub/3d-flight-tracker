@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { StatusMessage } from '@flight/shared';
+import { DEFAULT_FLIGHT_FILTERS } from './data/flightFilters';
 import { FlightStore } from './data/flightStore';
 import { connectStream, type ConnectionState } from './data/stream';
 import { installDebugApi } from './debug';
 import { GlobeView } from './globe/GlobeView';
 import { DetailsPanel } from './components/DetailsPanel';
+import { FlightFilterPanel } from './components/FlightFilterPanel';
 import { Legend } from './components/Legend';
 import { StatusBar } from './components/StatusBar';
 import { advanceSyntheticFleet, createSyntheticFleet, syntheticRoutes } from './stress/syntheticFleet';
@@ -25,6 +27,7 @@ export function App() {
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [dataVersion, setDataVersion] = useState(0);
+  const [filters, setFilters] = useState(DEFAULT_FLIGHT_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [, setTick] = useState(0);
 
@@ -84,6 +87,15 @@ export function App() {
     return () => clearInterval(timer);
   }, []);
 
+  useLayoutEffect(() => {
+    // A replacement display store must use the current filters before the next paint.
+    const version = store.version;
+    store.setFilters(filters);
+    if (store.version !== version) setDataVersion((previous) => previous + 1);
+    // Only a present, filtered aircraft is deselected. An absent one is still reported as lost.
+    if (selectedId && store.getRaw(selectedId) && !store.get(selectedId)) setSelectedId(null);
+  }, [store, filters, dataVersion, selectedId]);
+
   const selectedTrack = selectedId ? store.get(selectedId) : undefined;
   const nowS = store.now();
 
@@ -94,7 +106,10 @@ export function App() {
         <h1>Flight Tracker</h1>
         <p className="hint">Drag to rotate · Scroll to zoom · Click an aircraft for details</p>
       </header>
-      <Legend routeCount={store.routes.size} aircraftCount={store.tracks.length} />
+      <div className="flight-filter-stack">
+        <FlightFilterPanel filters={filters} onChange={setFilters} allTracks={store.allTracks} visibleCount={store.tracks.length} />
+        <Legend routeCount={store.visibleRouteCount} aircraftCount={store.tracks.length} />
+      </div>
       {selectedTrack && (
         <DetailsPanel
           key={`${selectedTrack.aircraft.icao24}-${dataVersion}`}

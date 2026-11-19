@@ -8,6 +8,7 @@ import {
   type SnapshotMessage,
 } from '@flight/shared';
 import type { DisplayRoute } from '../globe/routeLayer';
+import { DEFAULT_FLIGHT_FILTERS, matchesFilters, sameFilters, type FlightFilters } from './flightFilters';
 
 export type StoreMode = FlightMode | 'synthetic';
 export type ApplyResult = 'applied' | 'duplicate' | 'reset';
@@ -18,19 +19,25 @@ export type ApplyResult = 'applied' | 'duplicate' | 'reset';
  * replayed timestamps line up with extrapolation.
  */
 export class FlightStore {
+  /** Filtered fleet, in rendering and picking order. */
   tracks: MotionTrack[] = [];
-  /** icao24 -> scheduled route, only for displayed aircraft with a known, plausible route. */
+  /** Full snapshot fleet, including hidden aircraft; filters never interrupt their motion. */
+  allTracks: MotionTrack[] = [];
+  /** icao24 -> scheduled route for the full snapshot, including filtered-out aircraft. */
   routes = new Map<string, DisplayRoute>();
-  /** Incremented whenever any displayed aircraft's route changes. */
+  visibleRouteCount = 0;
+  /** Incremented whenever any aircraft's route changes. */
   routesVersion = 0;
   mode: StoreMode | null = null;
   replayEpoch: number | null = null;
   lastSnapshotTime: number | null = null;
   lastSequence: number | null = null;
   clockOffsetMs = 0;
-  /** Incremented whenever the set of tracks changes. */
+  /** Incremented whenever snapshot or filter state changes. */
   version = 0;
   private index = new Map<string, MotionTrack>();
+  private visibleIndex = this.index;
+  private currentFilters = DEFAULT_FLIGHT_FILTERS;
 
   constructor(private readonly nowMs: () => number = Date.now) {}
 
@@ -44,7 +51,21 @@ export class FlightStore {
   }
 
   get(icao24: string): MotionTrack | undefined {
+    return this.visibleIndex.get(icao24);
+  }
+
+  getRaw(icao24: string): MotionTrack | undefined {
     return this.index.get(icao24);
+  }
+
+  get filters(): FlightFilters {
+    return this.currentFilters;
+  }
+
+  setFilters(filters: FlightFilters): void {
+    if (sameFilters(this.currentFilters, filters)) return;
+    this.currentFilters = { ...filters };
+    this.updateVisibleFleet();
   }
 
   applySnapshot(msg: SnapshotMessage): ApplyResult {
@@ -85,7 +106,7 @@ export class FlightStore {
     return reset ? 'reset' : 'applied';
   }
 
-  /** Replaces the displayed fleet and its routes; aircraft absent from `aircraft` stop being drawn. */
+  /** Replaces the full fleet and its routes, then reapplies visibility filters. */
   setAircraft(aircraft: Aircraft[], snapshotTime: number, routes: Map<string, DisplayRoute> = new Map()): void {
     const now = this.now();
     const tracks: MotionTrack[] = new Array<MotionTrack>(aircraft.length);
@@ -96,22 +117,46 @@ export class FlightStore {
       tracks[i] = track;
       index.set(a.icao24, track);
     }
-    this.tracks = tracks;
+    this.allTracks = tracks;
     this.index = index;
     this.lastSnapshotTime = snapshotTime;
     if (!sameRoutes(this.routes, routes)) {
       this.routes = routes;
       this.routesVersion++;
     }
-    this.version++;
+    this.updateVisibleFleet();
   }
 
   clear(): void {
-    this.tracks = [];
+    this.allTracks = [];
     this.index = new Map();
     this.routes = new Map();
     this.routesVersion++;
     this.lastSnapshotTime = null;
+    this.updateVisibleFleet();
+  }
+
+  private updateVisibleFleet(): void {
+    let routeCount = 0;
+    if (sameFilters(this.currentFilters, DEFAULT_FLIGHT_FILTERS)) {
+      this.tracks = this.allTracks;
+      this.visibleIndex = this.index;
+      for (const id of this.routes.keys()) if (this.index.has(id)) routeCount++;
+    } else {
+      const tracks: MotionTrack[] = [];
+      const index = new Map<string, MotionTrack>();
+      for (const track of this.allTracks) {
+        const id = track.aircraft.icao24;
+        const knownRoute = this.routes.has(id);
+        if (!matchesFilters(track.aircraft, knownRoute, this.currentFilters)) continue;
+        tracks.push(track);
+        index.set(id, track);
+        if (knownRoute) routeCount++;
+      }
+      this.tracks = tracks;
+      this.visibleIndex = index;
+    }
+    this.visibleRouteCount = routeCount;
     this.version++;
   }
 }

@@ -1,0 +1,110 @@
+.flight-filter-stack {
+  position: absolute;
+  left: 20px;
+  bottom: 64px;
+  display: grid;
+  gap: 8px;
+  width: min(300px, calc(100% - 40px));
+  max-height: calc(100% - 128px);
+  overflow: auto;
+}
+
+.flight-filter-stack > .legend {
+  position: static;
+  width: auto;
+}
+
+.flight-filters {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.flight-filters summary {
+  cursor: pointer;
+  padding: 8px 14px;
+}
+
+.flight-filter-fields {
+  display: grid;
+  gap: 8px;
+  padding: 0 14px 12px;
+}
+
+.flight-filter-fields label:not(.flight-filter-checkbox) {
+  display: grid;
+  gap: 3px;
+}
+
+.flight-filter-fields select,
+.flight-filter-fields button {
+  background: #0c1a29;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  padding: 4px 6px;
+}
+
+.flight-filter-fields button {
+  justify-self: start;
+  cursor: pointer;
+}
+
+.flight-filter-fields button:disabled,
+.flight-filter-empty {
+  color: var(--muted);
+}
+
+.flight-filter-fields button:disabled {
+  cursor: default;
+}
+
+.flight-filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.flight-filter-empty {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .app:has(> .flight-filter-stack) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px 20px 88px;
+  }
+
+  .app:has(> .flight-filter-stack) > .title {
+    position: relative;
+    inset: auto;
+    flex: none;
+    max-width: 100%;
+    z-index: 2;
+  }
+
+  /* Narrow screens keep the search results in flow with the rest of the header. */
+  .app:has(> .flight-filter-stack) > .title .aircraft-search-results {
+    position: static;
+    margin-top: 4px;
+  }
+
+  .flight-filter-stack {
+    position: relative;
+    inset: auto;
+    width: min(300px, 100%);
+    min-height: 0;
+    max-height: none;
+    margin-top: 12px;
+  }
+
+  .flight-filter-stack:has(> .flight-filters[open]) {
+    z-index: 1;
+  }
+}
