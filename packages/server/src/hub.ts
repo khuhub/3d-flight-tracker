@@ -1,6 +1,7 @@
 import type { ServerResponse } from 'node:http';
 import { toWire, type FlightMode, type Snapshot, type SnapshotMessage, type StatusMessage } from '@flight/shared';
 import type { RouteDatabase } from './routes';
+import { SnapshotHistory } from './history';
 
 export interface HubOptions {
   mode: FlightMode;
@@ -19,6 +20,7 @@ export interface HubOptions {
  * Each snapshot is serialised once regardless of the number of connected browsers.
  */
 export class SnapshotHub {
+  readonly history: SnapshotHistory;
   private readonly clients = new Set<ServerResponse>();
   private snapshotFrame: string | null = null;
   private latest: SnapshotMessage | null = null;
@@ -29,6 +31,7 @@ export class SnapshotHub {
 
   constructor(private readonly options: HubOptions) {
     this.now = options.now ?? Date.now;
+    this.history = new SnapshotHistory(this.now);
     this.status = {
       mode: options.mode,
       upstream: 'starting',
@@ -66,7 +69,9 @@ export class SnapshotHub {
       airports: routes?.airports ?? {},
     };
     this.latest = message;
-    this.snapshotFrame = frame('snapshot', message);
+    const json = JSON.stringify(message);
+    this.history.append(message, json);
+    this.snapshotFrame = `event: snapshot\ndata: ${json}\n\n`;
     this.status = { ...this.status, upstream: 'ok', lastSuccessAt: now, lastError: null };
     this.broadcast(frame('status', this.getStatus()));
     this.broadcast(this.snapshotFrame);
@@ -96,6 +101,7 @@ export class SnapshotHub {
   }
 
   close(): void {
+    this.history.close();
     for (const res of this.clients) res.end();
     this.clients.clear();
     if (this.heartbeat) clearInterval(this.heartbeat);

@@ -2,6 +2,7 @@ import { createReadStream, statSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { extname, join, normalize, sep } from 'node:path';
 import type { SnapshotHub } from './hub';
+import { historyHandler } from './historyHttp';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -22,6 +23,7 @@ export interface AppOptions {
 }
 
 export function createApp({ hub, staticDir = null }: AppOptions): Server {
+  const history = historyHandler(hub.history);
   return createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -29,6 +31,9 @@ export function createApp({ hub, staticDir = null }: AppOptions): Server {
       return;
     }
     if (url.pathname === '/api/stream') return stream(req, res, hub);
+    if (url.pathname === '/api/history' || url.pathname.startsWith('/api/history/')) {
+      return history(url, res, req.method === 'HEAD', req.headers['accept-encoding']);
+    }
     if (url.pathname === '/api/status') return json(res, hub.getStatus());
     if (url.pathname === '/api/health') return json(res, { ok: true, clients: hub.clientCount });
     if (url.pathname.startsWith('/api/')) return json(res, { error: 'Not found' }, 404);

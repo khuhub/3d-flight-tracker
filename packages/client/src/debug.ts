@@ -52,12 +52,12 @@ declare global {
 
 export function installDebugApi(
   view: GlobeView,
-  store: FlightStore,
+  getStore: () => FlightStore,
   getSelected: () => string | null,
   extras: Partial<FlightTrackerDebugApi> = {},
 ): () => void {
   const describe = (index: number): VisibleAircraft | null => {
-    const track = store.tracks[index];
+    const track = getStore().tracks[index];
     const screen = view.screenPosition(index);
     if (!track || !screen) return null;
     const p = view.aircraft.positions;
@@ -67,6 +67,7 @@ export function installDebugApi(
 
   const api: FlightTrackerDebugApi = {
     stats: () => {
+      const store = getStore();
       const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory;
       return {
         aircraft: view.aircraft.count,
@@ -97,7 +98,7 @@ export function installDebugApi(
       return out;
     },
     aircraft: (icao24) => {
-      const index = store.tracks.findIndex((t) => t.aircraft.icao24 === icao24);
+      const index = getStore().tracks.findIndex((t) => t.aircraft.icao24 === icao24);
       return index >= 0 ? describe(index) : null;
     },
     setAutoRotate: (enabled) => {

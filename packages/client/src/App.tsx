@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import type { StatusMessage } from '@flight/shared';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlightStore } from './data/flightStore';
-import { connectStream, type ConnectionState } from './data/stream';
 import { installDebugApi } from './debug';
 import { GlobeView } from './globe/GlobeView';
 import { DetailsPanel } from './components/DetailsPanel';
 import { Legend } from './components/Legend';
 import { StatusBar } from './components/StatusBar';
 import { advanceSyntheticFleet, createSyntheticFleet, syntheticRoutes } from './stress/syntheticFleet';
+import { TimelineControls } from './timeline/TimelineControls';
+import { useTimeline } from './timeline/useTimeline';
 
 function stressCount(): number | null {
   const raw = new URLSearchParams(window.location.search).get('stress');
@@ -20,21 +20,24 @@ export function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<GlobeView | null>(null);
   const selectedRef = useRef<string | null>(null);
-  const [store] = useState(() => new FlightStore());
+  const [liveStore] = useState(() => new FlightStore());
   const [stress] = useState(stressCount);
-  const [connection, setConnection] = useState<ConnectionState>('connecting');
-  const [status, setStatus] = useState<StatusMessage | null>(null);
   const [dataVersion, setDataVersion] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [, setTick] = useState(0);
+  const onPresented = useCallback((store: FlightStore) => {
+    viewRef.current?.setStore(store);
+    setDataVersion((version) => version + 1);
+  }, []);
+  const { controller, store, historyActive, status, connection } = useTimeline(liveStore, stress === null, onPresented);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    const store = liveStore;
     const view = new GlobeView(container, store, setSelectedId);
     viewRef.current = view;
     const extras: Parameters<typeof installDebugApi>[3] = {};
-    let cleanup = (): void => {};
 
     if (stress !== null) {
       let now = store.now();
@@ -52,27 +55,14 @@ export function App() {
         return { applyMs };
       };
       queueMicrotask(() => setDataVersion(store.version));
-    } else {
-      cleanup = connectStream('/api/stream', {
-        onSnapshot: (message) => {
-          store.applySnapshot(message);
-          setDataVersion(store.version);
-        },
-        onStatus: (message) => {
-          store.syncClock(message.serverNow);
-          setStatus(message);
-        },
-        onConnection: setConnection,
-      });
     }
-    const uninstall = installDebugApi(view, store, () => selectedRef.current, extras);
+    const uninstall = installDebugApi(view, () => view.getStore(), () => selectedRef.current, extras);
     return () => {
-      cleanup();
       uninstall();
       view.dispose();
       viewRef.current = null;
     };
-  }, [store, stress]);
+  }, [liveStore, stress]);
 
   useEffect(() => {
     selectedRef.current = selectedId;
@@ -113,13 +103,14 @@ export function App() {
         </div>
       )}
       <StatusBar
-        mode={stress !== null ? 'synthetic' : (status?.mode ?? store.mode)}
+        mode={stress !== null ? 'synthetic' : historyActive ? store.mode : (status?.mode ?? store.mode)}
         connection={stress !== null ? 'open' : connection}
-        status={status}
+        status={historyActive ? null : status}
         aircraftCount={store.tracks.length}
         nowMs={nowS * 1000}
-        lastUpdateMs={stress !== null ? null : (status?.lastSuccessAt ?? null)}
+        lastUpdateMs={stress !== null ? null : historyActive ? controller.lastUpdateAt : (status?.lastSuccessAt ?? null)}
       />
+      {stress === null && <TimelineControls timeline={controller} />}
       <footer className="attribution">
         Flight data: <a href="https://opensky-network.org" target="_blank" rel="noreferrer">The OpenSky Network</a> · Map:
         Natural Earth
