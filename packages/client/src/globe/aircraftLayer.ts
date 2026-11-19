@@ -36,6 +36,7 @@ export class AircraftLayer {
   positions = new Float32Array(0);
   stale = new Uint8Array(0);
   count = 0;
+  private onPositionsUpdated?: (tracks: readonly MotionTrack[], positions: Float32Array) => void;
   private readonly geometry = createAirplaneGeometry();
   private readonly material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, toneMapped: false });
   private readonly estimate = createEstimate();
@@ -43,6 +44,10 @@ export class AircraftLayer {
 
   constructor(private readonly parent: THREE.Object3D) {
     this.allocate(16_384);
+  }
+
+  setPositionsListener(listener: (tracks: readonly MotionTrack[], positions: Float32Array) => void): void {
+    this.onPositionsUpdated = listener;
   }
 
   get capacity(): number {
@@ -160,6 +165,7 @@ export class AircraftLayer {
     ic.clearUpdateRanges();
     ic.addUpdateRange(0, n * 3);
     ic.needsUpdate = true;
+    this.onPositionsUpdated?.(tracks, pos);
   }
 
   dispose(): void {

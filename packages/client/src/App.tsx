@@ -4,6 +4,7 @@ import { FlightStore } from './data/flightStore';
 import { connectStream, type ConnectionState } from './data/stream';
 import { installDebugApi } from './debug';
 import { GlobeView } from './globe/GlobeView';
+import { AircraftSearch } from './components/AircraftSearch';
 import { DetailsPanel } from './components/DetailsPanel';
 import { Legend } from './components/Legend';
 import { StatusBar } from './components/StatusBar';
@@ -18,6 +19,7 @@ function stressCount(): number | null {
 }
 
 export function App() {
+  const [followingId, setFollowingId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<GlobeView | null>(null);
   const selectedRef = useRef<string | null>(null);
@@ -35,6 +37,7 @@ export function App() {
     if (!container) return;
     const view = new GlobeView(container, store, setSelectedId);
     viewRef.current = view;
+    view.setFollowListener(setFollowingId);
     const extras: Parameters<typeof installDebugApi>[3] = {};
     let cleanup = (): void => {};
 
@@ -103,6 +106,16 @@ export function App() {
       <div className="globe" ref={containerRef} />
       <header className="title">
         <h1>Flight Tracker</h1>
+        <AircraftSearch
+          tracks={store.tracks}
+          followLabel={followingId && followingId === selectedId ? selectedTrack?.aircraft.callsign ?? followingId : null}
+          followPaused={!selectedTrack}
+          onSelect={(id) => {
+            if (!store.get(id)) return;
+            setSelectedId(id);
+            viewRef.current?.followAircraft(id);
+          }}
+        />
         <p className="hint">Drag to rotate · Scroll to zoom · Click an aircraft for details</p>
       </header>
       <Legend routeCount={store.routes.size} aircraftCount={store.tracks.length}>

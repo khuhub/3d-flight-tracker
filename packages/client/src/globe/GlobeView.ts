@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { unitVector } from '@flight/shared';
 import type { FlightStore } from '../data/flightStore';
+import { AircraftFollow } from './aircraftFollow';
 import { AircraftLayer } from './aircraftLayer';
 import { createEarth } from './earth';
+import { GlobePointer } from './globePointer';
 import { RouteLayer } from './routeLayer';
 import { TrailLayer } from './trailLayer';
 
@@ -30,10 +32,11 @@ export class GlobeView {
   showFleetTrails = false;
   private readonly earth: ReturnType<typeof createEarth>;
   private readonly timer = new THREE.Timer();
+  private readonly follow: AircraftFollow;
+  private readonly pointer: GlobePointer;
   private readonly resizeObserver: ResizeObserver;
   private raf = 0;
   private selectedId: string | null = null;
-  private pointerStart: { x: number; y: number; t: number } | null = null;
   private lastFrameAt = 0;
   private intervals = new Float32Array(FRAME_SAMPLES);
   private cpu = new Float32Array(FRAME_SAMPLES);
@@ -79,9 +82,11 @@ export class GlobeView {
     this.aircraft = new AircraftLayer(this.scene);
     this.scene.add(this.routes.group, this.trails.lines);
 
-    const el = this.renderer.domElement;
-    el.addEventListener('pointerdown', this.handlePointerDown);
-    el.addEventListener('pointerup', this.handlePointerUp);
+    this.follow = new AircraftFollow();
+    this.aircraft.setPositionsListener((tracks, positions) => {
+      this.follow.update(tracks, positions, this.camera, this.controls.target, this.camera.position.length());
+    });
+    this.pointer = new GlobePointer(this.renderer.domElement, () => this.follow.setTarget(null), this.handleClick);
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
@@ -91,6 +96,16 @@ export class GlobeView {
 
   setSelected(icao24: string | null): void {
     this.selectedId = icao24;
+    if (icao24 !== this.follow.targetId) this.follow.setTarget(null);
+  }
+
+  followAircraft(icao24: string): void {
+    this.selectedId = icao24;
+    this.follow.setTarget(icao24);
+  }
+
+  setFollowListener(listener: (icao24: string | null) => void): void {
+    this.follow.setListener(listener);
   }
 
   /** Points the camera at a location from the given distance (globe radii from the centre). */
@@ -128,6 +143,8 @@ export class GlobeView {
     this.controls.autoRotate =
       this.autoRotate && !this.interacting && this.selectedId === null && start - this.lastInteractionAt > AUTO_ROTATE_RESUME_MS;
     this.controls.rotateSpeed = Math.min(1, Math.max(0.04, (distance - 1) * 0.35));
+    // A follow target that is temporarily absent still holds the camera in place.
+    if (this.follow.targetId !== null) this.controls.autoRotate = false;
     this.controls.update(delta);
 
     const now = this.store.now();
@@ -162,17 +179,11 @@ export class GlobeView {
     this.sampleCount++;
   };
 
-  private readonly handlePointerDown = (e: PointerEvent): void => {
-    this.pointerStart = { x: e.clientX, y: e.clientY, t: performance.now() };
-  };
-
-  private readonly handlePointerUp = (e: PointerEvent): void => {
-    const start = this.pointerStart;
-    this.pointerStart = null;
-    if (!start) return;
-    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 6 || performance.now() - start.t > 600) return;
+  private readonly handleClick = (e: PointerEvent): void => {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const hit = this.pick(e.clientX - rect.left, e.clientY - rect.top);
+    if (hit === null && this.follow.targetId !== null) return;
+    this.setSelected(hit);
     this.onSelect(hit);
   };
 
@@ -237,8 +248,7 @@ export class GlobeView {
     cancelAnimationFrame(this.raf);
     this.resizeObserver.disconnect();
     const el = this.renderer.domElement;
-    el.removeEventListener('pointerdown', this.handlePointerDown);
-    el.removeEventListener('pointerup', this.handlePointerUp);
+    this.pointer.dispose();
     this.controls.dispose();
     this.timer.dispose();
     this.aircraft.dispose();
