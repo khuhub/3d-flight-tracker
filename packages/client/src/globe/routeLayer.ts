@@ -246,6 +246,10 @@ export class RouteLayer {
     return (this.selected.geometry.getAttribute('position')?.count ?? 0) / 2;
   }
 
+  get positionsTexture(): THREE.DataTexture {
+    return this.texture;
+  }
+
   gpuBytes(): number {
     let bytes = this.texels.byteLength;
     for (const o of [this.lines, this.selected]) {

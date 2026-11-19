@@ -10,11 +10,17 @@ const pct = (values: number[], p: number): number => {
 };
 const round = (n: number): number => Math.round(n * 100) / 100;
 
-test(`${AIRCRAFT} synthetic aircraft with a 6,000 km route each`, async ({ page }) => {
+test(`${AIRCRAFT} synthetic aircraft with a 6,000 km route each`, async ({ page, baseURL }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  await page.route('**/*', (route) => {
+    const url = route.request().url();
+    if (url.startsWith(`${new URL(baseURL!).origin}/`) || url.startsWith('data:') || url.startsWith('blob:')) return route.continue();
+    errors.push(`Unexpected external request: ${url}`);
+    return route.abort();
+  });
   const loadStart = Date.now();
-  await page.goto(`/?stress=${AIRCRAFT}`);
+  await page.goto(`/?stress=${AIRCRAFT}&stressManual=1`);
   await page.waitForFunction(() => (window.__flightTracker?.stats().routeSegments ?? 0) > 0, null, { timeout: 120_000 });
   const loadMs = Date.now() - loadStart;
   // Every aircraft has a route, so this is the heaviest route load the globe can see.

@@ -10,6 +10,9 @@ export interface DebugStats {
   routes: number;
   selectedSegments: number;
   routeBufferBytes: number;
+  fleetTrailSegments: number;
+  selectedTrailSegments: number;
+  trailBufferBytes: number;
   lastRouteRebuildMs: number;
   routesVersion: number;
   snapshotSequence: number | null;
@@ -76,6 +79,9 @@ export function installDebugApi(
         routes: view.routes.routeCount,
         selectedSegments: view.routes.selectedSegments,
         routeBufferBytes: view.routes.gpuBytes(),
+        fleetTrailSegments: view.trails.fleetSegments,
+        selectedTrailSegments: view.trails.selectedSegments,
+        trailBufferBytes: view.trails.gpuBytes(),
         lastRouteRebuildMs: view.routes.lastRebuildMs,
         routesVersion: store.routesVersion,
         snapshotSequence: store.lastSequence,
