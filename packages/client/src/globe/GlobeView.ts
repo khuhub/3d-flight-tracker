@@ -5,6 +5,7 @@ import type { FlightStore } from '../data/flightStore';
 import { AircraftLayer } from './aircraftLayer';
 import { createEarth } from './earth';
 import { RouteLayer } from './routeLayer';
+import { TrailLayer } from './trailLayer';
 
 const PICK_RADIUS_PX = 14;
 const FRAME_SAMPLES = 600;
@@ -25,6 +26,8 @@ export class GlobeView {
   readonly controls: OrbitControls;
   readonly aircraft: AircraftLayer;
   readonly routes = new RouteLayer();
+  readonly trails = new TrailLayer();
+  showFleetTrails = false;
   private readonly earth: ReturnType<typeof createEarth>;
   private readonly timer = new THREE.Timer();
   private readonly resizeObserver: ResizeObserver;
@@ -74,7 +77,7 @@ export class GlobeView {
     this.earth = createEarth(this.renderer.capabilities.getMaxAnisotropy());
     this.scene.add(this.earth.group);
     this.aircraft = new AircraftLayer(this.scene);
-    this.scene.add(this.routes.group);
+    this.scene.add(this.routes.group, this.trails.lines);
 
     const el = this.renderer.domElement;
     el.addEventListener('pointerdown', this.handlePointerDown);
@@ -128,14 +131,25 @@ export class GlobeView {
     this.controls.update(delta);
 
     const now = this.store.now();
-    this.aircraft.update(this.store.tracks, now, distance, this.selectedId);
+    const tracks = this.store.tracks;
+    const key = `${this.store.version}:${this.store.routesVersion}`;
+    this.aircraft.update(tracks, now, distance, this.selectedId);
     this.routes.update({
-      tracks: this.store.tracks,
+      tracks,
       routes: this.store.routes,
-      key: `${this.store.version}:${this.store.routesVersion}`,
+      key,
       aircraftPositions: this.aircraft.positions,
       aircraftCount: this.aircraft.count,
       selectedId: this.selectedId,
+    });
+    this.trails.update({
+      history: this.store.trailHistory,
+      tracks,
+      now,
+      key,
+      selectedId: this.selectedId,
+      fleet: this.showFleetTrails,
+      positions: this.routes.positionsTexture,
     });
     this.renderer.render(this.scene, this.camera);
     this.drawCalls = this.renderer.info.render.calls;
@@ -229,6 +243,7 @@ export class GlobeView {
     this.timer.dispose();
     this.aircraft.dispose();
     this.routes.dispose();
+    this.trails.dispose();
     this.earth.dispose();
     this.renderer.dispose();
     el.remove();

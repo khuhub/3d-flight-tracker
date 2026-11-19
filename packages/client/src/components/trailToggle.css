@@ -1,0 +1,24 @@
+.trail-toggle {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
+.trail-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  cursor: pointer;
+}
+
+.trail-toggle input {
+  margin: 0;
+  accent-color: #67dfbf;
+}
+
+.trail-toggle p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  line-height: 1.4;
+}

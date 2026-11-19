@@ -8,6 +8,7 @@ import {
   type SnapshotMessage,
 } from '@flight/shared';
 import type { DisplayRoute } from '../globe/routeLayer';
+import { TrailHistory } from './trailHistory';
 
 export type StoreMode = FlightMode | 'synthetic';
 export type ApplyResult = 'applied' | 'duplicate' | 'reset';
@@ -19,6 +20,7 @@ export type ApplyResult = 'applied' | 'duplicate' | 'reset';
  */
 export class FlightStore {
   tracks: MotionTrack[] = [];
+  readonly trailHistory = new TrailHistory();
   /** icao24 -> scheduled route, only for displayed aircraft with a known, plausible route. */
   routes = new Map<string, DisplayRoute>();
   /** Incremented whenever any displayed aircraft's route changes. */
@@ -97,6 +99,7 @@ export class FlightStore {
       index.set(a.icao24, track);
     }
     this.tracks = tracks;
+    this.trailHistory.replace(tracks, now);
     this.index = index;
     this.lastSnapshotTime = snapshotTime;
     if (!sameRoutes(this.routes, routes)) {
@@ -108,6 +111,7 @@ export class FlightStore {
 
   clear(): void {
     this.tracks = [];
+    this.trailHistory.clear();
     this.index = new Map();
     this.routes = new Map();
     this.routesVersion++;

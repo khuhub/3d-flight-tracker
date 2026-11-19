@@ -9,7 +9,9 @@ const PORT = 4320;
  * the GPU, so on macOS ANGLE is pointed at Metal. The renderer used is recorded in the
  * results; numbers from a software renderer are not representative. HEADED=1 shows the window.
  */
-const gpuArgs = process.platform === 'darwin' ? ['--use-angle=metal', '--enable-gpu'] : ['--enable-gpu'];
+const gpuArgs = process.env.PERF_SWIFTSHADER === '1'
+  ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+  : process.platform === 'darwin' ? ['--use-angle=metal', '--enable-gpu'] : ['--enable-gpu'];
 export default defineConfig({
   testDir: './e2e',
   testMatch: /.*\.perf\.ts/,
@@ -29,6 +31,15 @@ export default defineConfig({
     url: `http://127.0.0.1:${PORT}/api/health`,
     reuseExistingServer: false,
     timeout: 180_000,
-    env: { PORT: String(PORT), FLIGHT_MODE: 'replay', REPLAY_DIR: 'packages/server/test/fixtures/replay' },
+    env: {
+      PORT: String(PORT),
+      FLIGHT_MODE: 'replay',
+      REPLAY_DIR: 'packages/server/test/fixtures/replay',
+      ROUTES_FILE: 'packages/server/test/fixtures/routes/routes.json',
+      OPENSKY_API_URL: 'http://127.0.0.1:9/api',
+      OPENSKY_TOKEN_URL: 'http://127.0.0.1:9/token',
+      OPENSKY_CLIENT_ID: '',
+      OPENSKY_CLIENT_SECRET: '',
+    },
   },
 });

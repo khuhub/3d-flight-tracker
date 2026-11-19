@@ -7,6 +7,7 @@ import { GlobeView } from './globe/GlobeView';
 import { DetailsPanel } from './components/DetailsPanel';
 import { Legend } from './components/Legend';
 import { StatusBar } from './components/StatusBar';
+import { TrailToggle } from './components/TrailToggle';
 import { advanceSyntheticFleet, createSyntheticFleet, syntheticRoutes } from './stress/syntheticFleet';
 
 function stressCount(): number | null {
@@ -26,6 +27,7 @@ export function App() {
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [dataVersion, setDataVersion] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [fleetTrails, setFleetTrails] = useState(false);
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export function App() {
       let fleet = createSyntheticFleet(stress, now);
       store.mode = 'synthetic';
       store.setAircraft(fleet, now, syntheticRoutes(fleet));
-      extras.stressAdvance = (seconds: number) => {
+      const advance = (seconds: number) => {
         store.clockOffsetMs += seconds * 1000;
         now = store.now();
         const t0 = performance.now();
@@ -51,6 +53,11 @@ export function App() {
         setDataVersion(store.version);
         return { applyMs };
       };
+      extras.stressAdvance = advance;
+      if (new URLSearchParams(window.location.search).get('stressManual') !== '1') {
+        const timer = setInterval(() => advance(0), 15_000);
+        cleanup = () => clearInterval(timer);
+      }
       queueMicrotask(() => setDataVersion(store.version));
     } else {
       cleanup = connectStream('/api/stream', {
@@ -80,6 +87,10 @@ export function App() {
   }, [selectedId]);
 
   useEffect(() => {
+    if (viewRef.current) viewRef.current.showFleetTrails = fleetTrails;
+  }, [fleetTrails]);
+
+  useEffect(() => {
     const timer = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -94,7 +105,9 @@ export function App() {
         <h1>Flight Tracker</h1>
         <p className="hint">Drag to rotate · Scroll to zoom · Click an aircraft for details</p>
       </header>
-      <Legend routeCount={store.routes.size} aircraftCount={store.tracks.length} />
+      <Legend routeCount={store.routes.size} aircraftCount={store.tracks.length}>
+        <TrailToggle checked={fleetTrails} onChange={setFleetTrails} />
+      </Legend>
       {selectedTrack && (
         <DetailsPanel
           key={`${selectedTrack.aircraft.icao24}-${dataVersion}`}

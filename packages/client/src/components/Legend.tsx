@@ -1,8 +1,10 @@
 import { ALTITUDE_STOPS } from '@flight/shared';
+import type { ReactNode } from 'react';
 
 interface Props {
   routeCount: number;
   aircraftCount: number;
+  children?: ReactNode;
 }
 
 const MAX_ALT = ALTITUDE_STOPS[ALTITUDE_STOPS.length - 1]!.altitude;
@@ -10,7 +12,7 @@ const gradient = `linear-gradient(to right, ${ALTITUDE_STOPS.map(
   (s) => `rgb(${s.color.map((c) => Math.round(c * 255)).join(' ')}) ${((s.altitude / MAX_ALT) * 100).toFixed(1)}%`,
 ).join(', ')})`;
 
-export function Legend({ routeCount, aircraftCount }: Props) {
+export function Legend({ routeCount, aircraftCount, children }: Props) {
   return (
     <section className="legend" aria-label="Legend">
       <h2>Altitude</h2>
@@ -40,6 +42,7 @@ export function Legend({ routeCount, aircraftCount }: Props) {
         Routes known for {routeCount.toLocaleString()} of {aircraftCount.toLocaleString()} aircraft. Scheduled
         routes by callsign; flights without one are not guessed.
       </p>
+      {children}
     </section>
   );
 }
