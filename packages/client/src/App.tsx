@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { StatusMessage } from '@flight/shared';
+import { DEFAULT_FLIGHT_FILTERS, type FlightFilters } from './data/flightFilters';
 import { FlightStore } from './data/flightStore';
 import { connectStream, type ConnectionState } from './data/stream';
 import { installDebugApi } from './debug';
 import { GlobeView } from './globe/GlobeView';
 import { DetailsPanel } from './components/DetailsPanel';
+import { FlightFilterPanel } from './components/FlightFilterPanel';
 import { Legend } from './components/Legend';
 import { StatusBar } from './components/StatusBar';
 import { advanceSyntheticFleet, createSyntheticFleet, syntheticRoutes } from './stress/syntheticFleet';
@@ -25,6 +27,7 @@ export function App() {
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [dataVersion, setDataVersion] = useState(0);
+  const [filters, setFilters] = useState(DEFAULT_FLIGHT_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [, setTick] = useState(0);
 
@@ -85,7 +88,15 @@ export function App() {
   }, []);
 
   const selectedTrack = selectedId ? store.get(selectedId) : undefined;
+  // A hidden aircraft is not lost. Clear the selection rather than restoring it on reset.
+  if (selectedId && !selectedTrack && store.getRaw(selectedId)) setSelectedId(null);
   const nowS = store.now();
+
+  function changeFilters(next: FlightFilters) {
+    store.setFilters(next);
+    setFilters(next);
+    setDataVersion(store.version);
+  }
 
   return (
     <div className="app">
@@ -94,7 +105,10 @@ export function App() {
         <h1>Flight Tracker</h1>
         <p className="hint">Drag to rotate · Scroll to zoom · Click an aircraft for details</p>
       </header>
-      <Legend routeCount={store.routes.size} aircraftCount={store.tracks.length} />
+      <div className="flight-filter-stack">
+        <FlightFilterPanel filters={filters} onChange={changeFilters} allTracks={store.allTracks} visibleCount={store.tracks.length} />
+        <Legend routeCount={store.visibleRouteCount} aircraftCount={store.tracks.length} />
+      </div>
       {selectedTrack && (
         <DetailsPanel
           key={`${selectedTrack.aircraft.icao24}-${dataVersion}`}

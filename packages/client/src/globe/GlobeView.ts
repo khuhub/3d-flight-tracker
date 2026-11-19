@@ -30,6 +30,7 @@ export class GlobeView {
   private readonly resizeObserver: ResizeObserver;
   private raf = 0;
   private selectedId: string | null = null;
+  private renderedTracks: FlightStore['tracks'] = [];
   private pointerStart: { x: number; y: number; t: number } | null = null;
   private lastFrameAt = 0;
   private intervals = new Float32Array(FRAME_SAMPLES);
@@ -121,23 +122,26 @@ export class GlobeView {
     this.timer.update();
     const delta = Math.min(this.timer.getDelta(), 0.1);
     const distance = this.camera.position.length();
+    const selectedId = this.selectedId && this.store.get(this.selectedId) ? this.selectedId : null;
     // Slow spin pauses while the user drags, has just interacted, or is inspecting an aircraft.
     this.controls.autoRotate =
-      this.autoRotate && !this.interacting && this.selectedId === null && start - this.lastInteractionAt > AUTO_ROTATE_RESUME_MS;
+      this.autoRotate && !this.interacting && selectedId === null && start - this.lastInteractionAt > AUTO_ROTATE_RESUME_MS;
     this.controls.rotateSpeed = Math.min(1, Math.max(0.04, (distance - 1) * 0.35));
     this.controls.update(delta);
 
     const now = this.store.now();
-    this.aircraft.update(this.store.tracks, now, distance, this.selectedId);
+    const { tracks } = this.store;
+    this.aircraft.update(tracks, now, distance, selectedId);
     this.routes.update({
-      tracks: this.store.tracks,
+      tracks,
       routes: this.store.routes,
       key: `${this.store.version}:${this.store.routesVersion}`,
       aircraftPositions: this.aircraft.positions,
       aircraftCount: this.aircraft.count,
-      selectedId: this.selectedId,
+      selectedId,
     });
     this.renderer.render(this.scene, this.camera);
+    this.renderedTracks = tracks;
     this.drawCalls = this.renderer.info.render.calls;
 
     const end = performance.now();
@@ -205,9 +209,11 @@ export class GlobeView {
   /** Nearest visible aircraft within the pick radius of a canvas-relative point. */
   pick(x: number, y: number): string | null {
     this.updateViewProjection();
+    const fleetChanged = this.renderedTracks !== this.store.tracks;
     let best = -1;
     let bestD = PICK_RADIUS_PX * PICK_RADIUS_PX;
     for (let i = 0; i < this.aircraft.count; i++) {
+      if (fleetChanged && !this.store.get(this.renderedTracks[i]!.aircraft.icao24)) continue;
       const s = this.project(i);
       if (!s) continue;
       const d = (s.x - x) ** 2 + (s.y - y) ** 2;
@@ -216,7 +222,7 @@ export class GlobeView {
         best = i;
       }
     }
-    return best >= 0 ? (this.store.tracks[best]?.aircraft.icao24 ?? null) : null;
+    return best >= 0 ? (this.renderedTracks[best]?.aircraft.icao24 ?? null) : null;
   }
 
   dispose(): void {
