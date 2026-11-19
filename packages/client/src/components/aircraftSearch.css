@@ -1,0 +1,102 @@
+.aircraft-search {
+  position: relative;
+  z-index: 1;
+  width: min(300px, calc(100vw - 40px));
+  margin-top: 8px;
+  pointer-events: auto;
+  font-size: 13px;
+}
+
+.aircraft-search input,
+.aircraft-search-results {
+  width: 100%;
+  background: #09121c;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.aircraft-search input {
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.aircraft-search input::placeholder,
+.aircraft-search-address,
+.aircraft-search-empty {
+  color: var(--muted);
+}
+
+.aircraft-search input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.aircraft-search-follow {
+  width: fit-content;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #09121c;
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.aircraft-search-follow:empty {
+  padding: 0;
+  margin: 0;
+}
+
+.aircraft-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px;
+  max-height: min(18rem, 50dvh);
+  overflow-y: auto;
+  list-style: none;
+}
+
+.aircraft-search-results [role="option"] {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.aircraft-search-results [role="option"]:hover,
+.aircraft-search-results [aria-selected="true"] {
+  background: #1a3043;
+}
+
+.aircraft-search-address {
+  font-family: ui-monospace, monospace;
+}
+
+.aircraft-search-empty {
+  padding: 8px 12px;
+}
+
+@media (max-width: 900px) {
+  /* Reserve space beneath the header for the search and follow status on narrow screens. */
+  .app:has(.aircraft-search) > .legend {
+    top: 133px;
+  }
+}
+
+@media (max-width: 660px) {
+  .app:has(.aircraft-search) > .details {
+    top: auto;
+    right: 12px;
+    bottom: 100px;
+    max-width: calc(100% - 24px);
+    max-height: 44dvh;
+    overflow: auto;
+  }
+
+  .aircraft-search input {
+    font-size: 16px;
+  }
+}

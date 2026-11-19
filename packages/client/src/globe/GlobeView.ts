@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { unitVector } from '@flight/shared';
 import type { FlightStore } from '../data/flightStore';
+import { AircraftFollow } from './aircraftFollow';
 import { AircraftLayer } from './aircraftLayer';
 import { createEarth } from './earth';
+import { GlobePointer } from './globePointer';
 import { RouteLayer } from './routeLayer';
 
 const PICK_RADIUS_PX = 14;
@@ -28,9 +30,10 @@ export class GlobeView {
   private readonly earth: ReturnType<typeof createEarth>;
   private readonly timer = new THREE.Timer();
   private readonly resizeObserver: ResizeObserver;
+  private readonly follow: AircraftFollow;
+  private readonly pointer: GlobePointer;
   private raf = 0;
   private selectedId: string | null = null;
-  private pointerStart: { x: number; y: number; t: number } | null = null;
   private lastFrameAt = 0;
   private intervals = new Float32Array(FRAME_SAMPLES);
   private cpu = new Float32Array(FRAME_SAMPLES);
@@ -45,6 +48,7 @@ export class GlobeView {
     private readonly container: HTMLElement,
     private readonly store: FlightStore,
     private readonly onSelect: (icao24: string | null) => void,
+    onFollowChange: (icao24: string | null) => void,
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -76,9 +80,8 @@ export class GlobeView {
     this.aircraft = new AircraftLayer(this.scene);
     this.scene.add(this.routes.group);
 
-    const el = this.renderer.domElement;
-    el.addEventListener('pointerdown', this.handlePointerDown);
-    el.addEventListener('pointerup', this.handlePointerUp);
+    this.follow = new AircraftFollow(onFollowChange);
+    this.pointer = new GlobePointer(this.renderer.domElement, () => this.follow.setTarget(null), this.handleClick);
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
@@ -88,6 +91,12 @@ export class GlobeView {
 
   setSelected(icao24: string | null): void {
     this.selectedId = icao24;
+    if (icao24 !== this.follow.targetId) this.follow.setTarget(null);
+  }
+
+  followAircraft(icao24: string): void {
+    this.selectedId = icao24;
+    this.follow.setTarget(icao24);
   }
 
   /** Points the camera at a location from the given distance (globe radii from the centre). */
@@ -129,6 +138,7 @@ export class GlobeView {
 
     const now = this.store.now();
     this.aircraft.update(this.store.tracks, now, distance, this.selectedId);
+    this.follow.update(this.store.tracks, this.aircraft.positions, this.camera, this.controls.target, this.camera.position.length());
     this.routes.update({
       tracks: this.store.tracks,
       routes: this.store.routes,
@@ -148,17 +158,11 @@ export class GlobeView {
     this.sampleCount++;
   };
 
-  private readonly handlePointerDown = (e: PointerEvent): void => {
-    this.pointerStart = { x: e.clientX, y: e.clientY, t: performance.now() };
-  };
-
-  private readonly handlePointerUp = (e: PointerEvent): void => {
-    const start = this.pointerStart;
-    this.pointerStart = null;
-    if (!start) return;
-    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 6 || performance.now() - start.t > 600) return;
+  private readonly handleClick = (e: PointerEvent): void => {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const hit = this.pick(e.clientX - rect.left, e.clientY - rect.top);
+    if (hit === null && this.follow.targetId !== null) return;
+    this.setSelected(hit);
     this.onSelect(hit);
   };
 
@@ -223,8 +227,7 @@ export class GlobeView {
     cancelAnimationFrame(this.raf);
     this.resizeObserver.disconnect();
     const el = this.renderer.domElement;
-    el.removeEventListener('pointerdown', this.handlePointerDown);
-    el.removeEventListener('pointerup', this.handlePointerUp);
+    this.pointer.dispose();
     this.controls.dispose();
     this.timer.dispose();
     this.aircraft.dispose();
