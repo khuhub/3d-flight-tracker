@@ -28,6 +28,7 @@ export class GlobeView {
   private readonly earth: ReturnType<typeof createEarth>;
   private readonly timer = new THREE.Timer();
   private readonly resizeObserver: ResizeObserver;
+  private sourceVersion = 0;
   private raf = 0;
   private selectedId: string | null = null;
   private pointerStart: { x: number; y: number; t: number } | null = null;
@@ -43,7 +44,7 @@ export class GlobeView {
 
   constructor(
     private readonly container: HTMLElement,
-    private readonly store: FlightStore,
+    private store: FlightStore,
     private readonly onSelect: (icao24: string | null) => void,
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -132,7 +133,7 @@ export class GlobeView {
     this.routes.update({
       tracks: this.store.tracks,
       routes: this.store.routes,
-      key: `${this.store.version}:${this.store.routesVersion}`,
+      key: `${this.sourceVersion}:${this.store.version}:${this.store.routesVersion}`,
       aircraftPositions: this.aircraft.positions,
       aircraftCount: this.aircraft.count,
       selectedId: this.selectedId,
@@ -217,6 +218,16 @@ export class GlobeView {
       }
     }
     return best >= 0 ? (this.store.tracks[best]?.aircraft.icao24 ?? null) : null;
+  }
+
+  setStore(store: FlightStore): void {
+    if (this.store === store) return;
+    this.store = store;
+    this.sourceVersion++;
+  }
+
+  getStore(): FlightStore {
+    return this.store;
   }
 
   dispose(): void {

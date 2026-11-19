@@ -36,12 +36,19 @@ export class FlightStore {
 
   /** Current time in unix seconds on the server's clock. */
   now(): number {
-    return (this.nowMs() + this.clockOffsetMs) / 1000;
+    return this.presentationClock?.() ?? (this.nowMs() + this.clockOffsetMs) / 1000;
+  }
+
+  /** Optional presentation clock, in Unix seconds. Set only on the historical store. */
+  setPresentationClock(clock: (() => number) | null): void {
+    this.presentationClock = clock;
   }
 
   syncClock(serverNowMs: number): void {
     this.clockOffsetMs = serverNowMs - this.nowMs();
   }
+
+  private presentationClock: (() => number) | null = null;
 
   get(icao24: string): MotionTrack | undefined {
     return this.index.get(icao24);
